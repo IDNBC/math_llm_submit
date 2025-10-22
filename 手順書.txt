@@ -1,0 +1,62 @@
+# 手順書で解説すること
+1桁～2桁までの整数値の四則演算ができる数学LLMモデル作成とfine-tuningを行う手順
+
+# 仮想環境を起動する際に使用するコマンド .\.venv\Scripts\Activate.ps1 だけで起動しない場合に使う
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+
+# 手順書 Windows環境
+
+1. Pythonのインストール
+pythonの公式サイトからpython3.12系をダウンロードし、ローカル環境にインストールします。
+https://www.python.org/downloads/windows/
+このURL内で 3.12.x のバージョンを探すとよいでしょう。
+※インストール時にチェックボックスの「Add Python to PATH」にチェックを入れてください。
+※3.12系以前を推奨する理由は、使用するトークナイザー sentencepiece が3.12.xまで対応しているためです。
+トークナイザーを自作することも可能ですが、学習済みモデルの評価などする際に互換性問題が発生することがあるため、安定性の高い sentencepiece を採用します。
+
+2. 仮想環境の構築
+プロジェクトフォルダ（例: math_llm_project）を作成し、以下のコマンドで仮想環境を構築します。
+もしくは、以下のGitHubリポジトリをcloneして、そのフォルダを作業ディレクトリにしても構いません。
+git clone (url)コマンドでなく、ZIPファイルをダウンロードして展開したフォルダでもよいです。
+https://github.com/IDNBC/math_llm_submit
+
+VScodeなどのターミナルで以下のコマンドによりpython3.12系で仮想環境を構築する。
+py -3.12 -m venv .venv
+コマンドを実行すると、.venv フォルダ内に仮想環境が作成されます。
+
+
+3. 仮想環境の起動
+仮想環境を起動する際に以下のコマンドを実行します。上のSet-...コマンドはうまく起動しない場合に使用します。
+Set-ExecutionPolicy は一時的にスクリプト実行を許可する設定です。-Scope Process にしておくことで、現在のターミナルだけ有効になります。
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+
+仮想環境が有効になると、プロンプトの先頭に (.venv) と表示されます。以下のような表示がされます。
+(.venv) PS C:\Users\owner\math_llm_project>
+仮想環境を起動した状態で、各種ライブラリをインストールします。
+仮想環境を使用することで、他のPythonプロジェクトとライブラリのバージョンが混ざることを防げます。
+仮想環境内でインストールしたライブラリは、その環境を起動している間だけ使用されます。
+
+4. PyTorchのインストール
+PyTorchの公式サイトからインストール用のコマンドをコピペして実行する 使用環境に合わせてコマンドは変わる。
+https://pytorch.org/get-started/locally/
+このURLで自分の環境を選んでコマンドをコピペしてください。
+仮想環境を起動してから、その仮想環境が動いている範囲内の作業ディレクトリでPyTorchをインストールします。
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+
+5. 追加ライブラリのインストール
+次に以下のコマンドで必要なライブラリを一括してインストールします。
+PyTorchを分けたのは、PyTorchを他のライブラリと一括でインストールしようとすると、依存関係の競合や失敗が起こることがあるためです。
+requirements.txtには、本プロジェクトで必要な基本ライブラリが含まれています。
+pip install -r requirements.txt
+
+6. 動作確認
+適当なtest.pyのような名前でpythonファイルを作成し、以下のコードをコピペして実行してください。
+スクリプトの実行は、仮想環境が起動した状態のターミナルで、
+python test.py
+と打ち込みエンターキーで出来ます。True が表示されれば、GPUが正しく認識されています。
+
+import torch
+print(torch.cuda.is_available())
