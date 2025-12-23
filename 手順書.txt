@@ -5,14 +5,14 @@
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\.venv\Scripts\Activate.ps1
 
-# 手順書 Windows環境
 
+# 手順 Windows環境
 1. Pythonのインストール
 pythonの公式サイトからpython3.12系をダウンロードし、ローカル環境にインストールします。
 https://www.python.org/downloads/windows/
 このURL内で 3.12.x のバージョンを探すとよいでしょう。
 ※インストール時にチェックボックスの「Add Python to PATH」にチェックを入れてください。
-※3.12系以前を推奨する理由は、使用するトークナイザー sentencepiece が3.12.xまで対応しているためです。
+※3.12系以前を推奨する理由は、使用するトークナイザー sentencepiece が3.12系まで対応しているためです。
 トークナイザーを自作することも可能ですが、学習済みモデルの評価などする際に互換性問題が発生することがあるため、安定性の高い sentencepiece を採用します。
 
 2. 仮想環境の構築
@@ -28,9 +28,11 @@ py -3.12 -m venv .venv
 
 3. 仮想環境の起動
 仮想環境を起動する際に以下のコマンドを実行します。上のSet-...コマンドはうまく起動しない場合に使用します。
-Set-ExecutionPolicy は一時的にスクリプト実行を許可する設定です。-Scope Process にしておくことで、現在のターミナルだけ有効になります。
 
+Set-ExecutionPolicy は一時的にスクリプト実行を許可する設定です。-Scope Process にしておくことで、現在のターミナルだけ有効になります。
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+
+以下は仮想環境を起動するコマンドです。
 .\.venv\Scripts\Activate.ps1
 
 仮想環境が有効になると、プロンプトの先頭に (.venv) と表示されます。以下のような表示がされます。
@@ -44,19 +46,80 @@ PyTorchの公式サイトからインストール用のコマンドをコピペ�
 https://pytorch.org/get-started/locally/
 このURLで自分の環境を選んでコマンドをコピペしてください。
 仮想環境を起動してから、その仮想環境が動いている範囲内の作業ディレクトリでPyTorchをインストールします。
+以下のコマンドはGPU6GBのスペックで使用したインストールコマンドです。
+
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 
 5. 追加ライブラリのインストール
 次に以下のコマンドで必要なライブラリを一括してインストールします。
 PyTorchを分けたのは、PyTorchを他のライブラリと一括でインストールしようとすると、依存関係の競合や失敗が起こることがあるためです。
 requirements.txtには、本プロジェクトで必要な基本ライブラリが含まれています。
+以下のコマンドを仮想環境を起動したうえでターミナルで実行してください。
+
 pip install -r requirements.txt
 
 6. 動作確認
-適当なtest.pyのような名前でpythonファイルを作成し、以下のコードをコピペして実行してください。
+適当なtest.pyのような名前でpythonファイルを作成し、以下の2行のコードをコピペして実行してください。
 スクリプトの実行は、仮想環境が起動した状態のターミナルで、
 python test.py
 と打ち込みエンターキーで出来ます。True が表示されれば、GPUが正しく認識されています。
 
 import torch
 print(torch.cuda.is_available())
+
+
+[環境構築後の手順]
+
+環境構築が済めば、後は各コードを実行してデータ生成やモデル訓練、ファインチューニングを行うだけです。
+
+1.学習用データセットの生成
+モデルに学習させるデータの生成はdata_generate.pyを実行して行います。
+特に出力ファイル名を変更せずに実行すると、neg_1_2digit_v1.jsonlのファイルが生成されます。
+jsonl形式は1行に1データのファイルです。
+
+2.トークナイザーの準備
+tokenizer_train.pyを実行しますと、
+math_tokenizer.model
+math_tokenizer.vocab
+の2つのファイルが作成されます。
+math_tokenizer.modelがトークナイザーです。ここでは語彙数35で生成されます。
+ここではトークナイザーの訓練に、言語モデルの学習に使うデータセットneg_1_2digit_v1.jsonlを流用しています。
+ユーザ定義のトークンだけでやってはうまく作成されなかったので、学習用データセットを流用したらうまくいきました。
+tokenizer_analysis.pyを実行すると、作成したトークナイザーのIDと対応する語彙をCSV形式で出力できます。
+トークナイザーの中身を把握したい場合に使用するとよいでしょう。
+
+
+3.モデルの訓練
+モデルの作成には最初はmodel_train.pyを使います。
+epoch数15となっていてGPU6GBでBATCH_SIZE = 8だと、1epochあたり数十分なので合計8時間ほどを目安にしてください。
+使用するGPUが多くて、バッチサイズを増やしたりできる場合はもっと短縮できます。
+model_train.pyではBATCH_SIZE = 8 になっているので、環境に合わせて変更してください。
+
+モデルの訓練によりoutput_v1_modelフォルダが生成されます。
+その中にmath_llmというフォルダが生成されて、そこにモデルファイルなどが入ります。
+
+4.モデルの評価
+モデルが作成されたら評価を行います。ここでは学習に使用したデータで評価します。
+汎化性能を調べるにはここで、学習データにないデータを使用します。
+evaluate_model.pyでは、モデルの学習具合を評価します。
+evaluate_extract.pyでは、モデルが誤答した演算を集めてデータファイルとして出力します。
+ファインチューニングをしていくのであれば、evaluate_extract.pyを使用するとよいです。
+
+evaluate_extract.pyで生成されたデータにはわかりやすい識別名をつけるとよいです。
+どの段階で作成し、使用したかが番号で判別できるようだといいでしょう。
+
+5.ファインチューニング用データセットの生成
+evaluate_extract.pyでモデルの評価と同時に誤答データを抽出してファイルが作成されます。
+これを使ってファインチューニング用のデータに整形します。
+
+
+次に行うファインチューニングでは、このモデルのパスを指定します。
+
+fine_tuning.pyは数回のファインチューニングで使いまわしています。
+訓練するたびに作成されるモデルファイルの名前などを変更し、区別がつくようにします。
+こうすることで、どのモデルにでも戻って訓練をやり直せるようにできます。
+model_train.pyで出力するoutput_v1_model/math_llmというフォルダを以下のようにfine_tuning.pyで指定します。
+BASE_MODEL_PATH = os.path.join(PROJECT_ROOT, "output1018_v1_model", "math_llm")
+
+トークナイザーは同じものを使用するので、パスや名前の変更は必要ありません。
+学習に使うデータはできれば誤答したものを中心とした方がいいです。
